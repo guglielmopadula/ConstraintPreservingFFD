@@ -3,7 +3,6 @@ from numba import jit,prange
 from numba.extending import get_cython_function_address
 import ctypes
 import numpy as np
-from pygem.ffd import FFD
 from tqdm import trange
 import time
 
