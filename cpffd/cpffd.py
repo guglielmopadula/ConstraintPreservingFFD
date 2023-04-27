@@ -16,6 +16,123 @@ binom = functype(addr)
 #from scipy.special import binom
 
 @jit(nopython=True)
+def points_triangle_indexing(points,triangles):
+    tmp=np.zeros((triangles.shape[0],triangles.shape[1],points.shape[1]))
+    for i in range(triangles.shape[0]):
+        for j in range(triangles.shape[1]):
+            for k in range(points.shape[1]):
+                    tmp[i,j,k]=points[triangles[i,j],k]
+    return tmp
+
+    
+
+
+@jit(nopython=True)
+def volume_x(points,triangles):
+    mesh=points_triangle_indexing(points,triangles)
+    n_triangles=len(triangles)
+    s=0
+    for i in range(n_triangles):
+        x_sum=0
+        for j in range(3):
+            x_sum=x_sum+mesh[i,j,0]
+        tmp=np.zeros((2,2))
+        tmp[0,0]=mesh[i,1,1]-mesh[i,0,1]
+        tmp[0,1]=mesh[i,1,2]-mesh[i,0,2]
+        tmp[1,0]=mesh[i,2,1]-mesh[i,0,1]
+        tmp[1,1]=mesh[i,2,2]-mesh[i,0,2]
+        s=s+x_sum*np.linalg.det(tmp)/6
+    return s
+
+
+@jit(nopython=True)
+def volume_y(points,triangles):
+    mesh=points_triangle_indexing(points,triangles)
+    n_triangles=len(triangles)
+    s=0
+    for i in range(n_triangles):
+        y_sum=0
+        for j in range(3):
+            y_sum=y_sum+mesh[i,j,1]
+        tmp=np.zeros((2,2))
+        tmp[0,0]=mesh[i,1,2]-mesh[i,0,2]
+        tmp[0,1]=mesh[i,1,0]-mesh[i,0,0]
+        tmp[1,0]=mesh[i,2,2]-mesh[i,0,2]
+        tmp[1,1]=mesh[i,2,0]-mesh[i,0,0]
+        s=s+y_sum*np.linalg.det(tmp)/6
+    return s
+
+
+@jit(nopython=True)
+def volume_z(points,triangles):
+    mesh=points_triangle_indexing(points,triangles)
+    n_triangles=len(triangles)
+    s=0
+    for i in range(n_triangles):
+        z_sum=0
+        for j in range(3):
+            z_sum=z_sum+mesh[i,j,2]
+        tmp=np.zeros((2,2))
+        tmp[0,0]=mesh[i,1,0]-mesh[i,0,0]
+        tmp[0,1]=mesh[i,1,1]-mesh[i,0,1]
+        tmp[1,0]=mesh[i,2,0]-mesh[i,0,0]
+        tmp[1,1]=mesh[i,2,1]-mesh[i,0,1]
+        s=s+z_sum*np.linalg.det(tmp)/6
+    return s
+
+@jit(nopython=True)
+def get_coeff_x(points,triangles):
+    p=np.zeros(points.shape[0])
+    mesh=points_triangle_indexing(points,triangles)
+    n_triangles=len(triangles)
+    for i in range(n_triangles):
+        tmp=np.zeros((2,2))
+        tmp[0,0]=mesh[i,1,1]-mesh[i,0,1]
+        tmp[0,1]=mesh[i,1,2]-mesh[i,0,2]
+        tmp[1,0]=mesh[i,2,1]-mesh[i,0,1]
+        tmp[1,1]=mesh[i,2,2]-mesh[i,0,2]
+        k=triangles[i]
+        p[k[0]]=p[k[0]]+np.linalg.det(tmp)/6
+        p[k[1]]=p[k[1]]+np.linalg.det(tmp)/6
+        p[k[2]]=p[k[2]]+np.linalg.det(tmp)/6
+    return p
+
+@jit(nopython=True)
+def get_coeff_y(points,triangles):
+    p=np.zeros(points.shape[0])
+    mesh=points_triangle_indexing(points,triangles)
+    n_triangles=len(triangles)
+    for i in range(n_triangles):
+        tmp=np.zeros((2,2))
+        tmp[0,0]=mesh[i,1,2]-mesh[i,0,2]
+        tmp[0,1]=mesh[i,1,0]-mesh[i,0,0]
+        tmp[1,0]=mesh[i,2,2]-mesh[i,0,2]
+        tmp[1,1]=mesh[i,2,0]-mesh[i,0,0]
+        k=triangles[i]
+        p[k[0]]=p[k[0]]+np.linalg.det(tmp)/6
+        p[k[1]]=p[k[1]]+np.linalg.det(tmp)/6
+        p[k[2]]=p[k[2]]+np.linalg.det(tmp)/6
+    return p
+
+@jit(nopython=True)
+def get_coeff_z(points,triangles):
+    p=np.zeros(points.shape[0])
+    mesh=points_triangle_indexing(points,triangles)
+    n_triangles=len(triangles)
+    for i in range(n_triangles):
+        tmp=np.zeros((2,2))
+        tmp[0,0]=mesh[i,1,0]-mesh[i,0,0]
+        tmp[0,1]=mesh[i,1,1]-mesh[i,0,1]
+        tmp[1,0]=mesh[i,2,0]-mesh[i,0,0]
+        tmp[1,1]=mesh[i,2,1]-mesh[i,0,1]
+        k=triangles[i]
+        p[k[0]]=p[k[0]]+np.linalg.det(tmp)/6
+        p[k[1]]=p[k[1]]+np.linalg.det(tmp)/6
+        p[k[2]]=p[k[2]]+np.linalg.det(tmp)/6
+    return p
+
+
+@jit(nopython=True)
 def generate_random_sdp(n):
     A=np.random.rand(n,n)
     A=A@A.T
@@ -121,6 +238,9 @@ def _classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z):
                     points_new[p,2]+=bernstein_mesh[p,i,j,k]*control_z[i,j,k]
     return points_new
 
+
+
+
 @jit(nopython=True)                             
 def _control_points(n_control_points,array_mu_x,array_mu_y,array_mu_z):   
     x = np.linspace(0, 1, n_control_points[0])
@@ -132,11 +252,15 @@ def _control_points(n_control_points,array_mu_x,array_mu_y,array_mu_z):
     z_coords=z_coords+array_mu_z
     return np.concatenate((x_coords.ravel(),y_coords.ravel(),z_coords.ravel()))
 
-@jit(nopython=True)
+@jit(nopython=True)                             
 def _barycenter_preserving_ffd(points,M,n_control_points,array_mu_x,array_mu_y,array_mu_z):
+    indices_c=np.arange(np.prod(n_control_points))
+    return  _barycenter_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu_y,array_mu_z,indices_c)
+
+@jit(nopython=True)                             
+def _barycenter_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu_y,array_mu_z,indices_c):
     n_points=len(points.reshape(-1,3))
     indices_x=np.arange(n_points*3)
-    indices_c=np.arange(np.prod(n_control_points))
     A=np.zeros((3,n_points*3))
     for i in range(3):
         for j in range(i,n_points*3,3):
@@ -144,6 +268,54 @@ def _barycenter_preserving_ffd(points,M,n_control_points,array_mu_x,array_mu_y,a
     b=numba_mean_0(points)
     tmp=_constrained_ffd(A,b,M,indices_x,indices_c,points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
     return tmp
+
+
+
+
+@jit(nopython=True)                             
+def _volume_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu_y,array_mu_z,triangles,indices_c):
+    array_x_bak=array_mu_x.copy()
+    array_y_bak=array_mu_y.copy()
+    array_z_bak=array_mu_z.copy()
+    n_points=len(points.reshape(-1,3))
+    points_deformed=_classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    Vol_true=volume_x(points,triangles)
+    Vol_def=volume_x(points_deformed,triangles)
+    ax=1/3*(Vol_true-Vol_def)
+    ay=1/3*(Vol_true-Vol_def)
+    az=1/3*(Vol_true-Vol_def)
+    indices_x=np.unique(3*np.arange(n_points))
+    Ax=get_coeff_x(points_deformed,triangles).reshape(1,-1)
+    bx=Vol_def+ax
+    tmp,new_array_x,new_array_y,new_array_z=_constrained_ffd(Ax,bx,M,indices_x,indices_c,points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    array_mu_x=array_mu_x+new_array_x
+    array_mu_y=array_mu_y+new_array_y
+    array_mu_z=array_mu_z+new_array_z
+    points_deformed=_classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    indices_y=3*np.arange(n_points)+1
+    Ay=get_coeff_y(points_deformed,triangles).reshape(1,-1)
+    by=bx+ay
+    tmp,new_array_x,new_array_y,new_array_z=_constrained_ffd(Ay,by,M,indices_y,indices_c,points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    array_mu_x=array_mu_x+new_array_x
+    array_mu_y=array_mu_y+new_array_y
+    array_mu_z=array_mu_z+new_array_z
+    points_deformed=_classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    indices_z=3*np.arange(n_points)+2
+    Az=get_coeff_z(points_deformed,triangles).reshape(1,-1)
+    bz=by+az
+    tmp,new_array_x,new_array_y,new_array_z=_constrained_ffd(Az,bz,M,indices_z,indices_c,points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    array_mu_x=array_mu_x+new_array_x
+    array_mu_y=array_mu_y+new_array_y
+    array_mu_z=array_mu_z+new_array_z
+    return tmp,array_mu_x-array_x_bak,array_mu_y-array_y_bak,array_mu_z-array_z_bak
+
+@jit(nopython=True)                             
+def _volume_preserving_ffd(points,M,n_control_points,array_mu_x,array_mu_y,array_mu_z,triangles):
+    indices_c=np.arange(n_control_points[0]*n_control_points[1]*n_control_points[2])
+    return _volume_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu_y,array_mu_z,triangles,indices_c)
+
+
+
 
 @jit(nopython=True)
 def _g(i,j,k,n_control_points):
@@ -202,6 +374,33 @@ class BPFFD(CPFFD):
     
     def barycenter_ffd(self,points,M):
         points,delta_q_x,delta_q_y,delta_q_z=_barycenter_preserving_ffd(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z)
+        self.array_mu_x=self.array_mu_x+delta_q_x
+        self.array_mu_y=self.array_mu_y+delta_q_y
+        self.array_mu_z=self.array_mu_z+delta_q_z
+        return points
+
+    def barycenter_ffd_adv(self,points,M,points_c):
+        points,delta_q_x,delta_q_y,delta_q_z=_barycenter_preserving_ffd_adv(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z,points_c)
+        self.array_mu_x=self.array_mu_x+delta_q_x
+        self.array_mu_y=self.array_mu_y+delta_q_y
+        self.array_mu_z=self.array_mu_z+delta_q_z
+        return points
+
+
+
+class VPFFD(CPFFD):
+    def __init__(self,n_control_points=None,box_length=None,box_origin=None):
+        super().__init__(n_control_points,box_length,box_origin)
+    
+    def volume_ffd(self,points,M,triangles):
+        points,delta_q_x,delta_q_y,delta_q_z=_volume_preserving_ffd(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z,triangles)
+        self.array_mu_x=self.array_mu_x+delta_q_x
+        self.array_mu_y=self.array_mu_y+delta_q_y
+        self.array_mu_z=self.array_mu_z+delta_q_z
+        return points
+    
+    def volume_ffd_adv(self,points,M,triangles,indices_c):
+        points,delta_q_x,delta_q_y,delta_q_z=_volume_preserving_ffd_adv(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z,triangles,indices_c)
         self.array_mu_x=self.array_mu_x+delta_q_x
         self.array_mu_y=self.array_mu_y+delta_q_y
         self.array_mu_z=self.array_mu_z+delta_q_z
