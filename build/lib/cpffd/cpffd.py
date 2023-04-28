@@ -24,6 +24,13 @@ def points_triangle_indexing(points,triangles):
                     tmp[i,j,k]=points[triangles[i,j],k]
     return tmp
 
+@jit(nopython=True)
+def numba_concatenate(a,b):
+    tmp=np.zeros((2,a.shape[0]))
+    for i in range(a.shape[0]):
+        tmp[0,i]=a[i]
+        tmp[1,i]=b[i]
+    return tmp
     
 
 
@@ -146,7 +153,7 @@ def numba_mean_0(A):
     mean=np.zeros(n)
     for i in range(m):
         mean=mean+A[i]
-    mean=mean/n
+    mean=mean/m
     return mean
 
 @jit(nopython=True)
@@ -264,7 +271,7 @@ def _barycenter_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu
     A=np.zeros((3,n_points*3))
     for i in range(3):
         for j in range(i,n_points*3,3):
-            A[i,j]=1/3
+            A[i,j]=1/n_points     
     b=numba_mean_0(points)
     tmp=_constrained_ffd(A,b,M,indices_x,indices_c,points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
     return tmp
@@ -288,31 +295,82 @@ def _volume_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu_y,a
     Ax=get_coeff_x(points_deformed,triangles).reshape(1,-1)
     bx=Vol_def+ax
     tmp,new_array_x,new_array_y,new_array_z=_constrained_ffd(Ax,bx,M,indices_x,indices_c,points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
-    array_mu_x=array_mu_x+new_array_x
-    array_mu_y=array_mu_y+new_array_y
-    array_mu_z=array_mu_z+new_array_z
+    array_mu_x=new_array_x
+    array_mu_y=new_array_y
+    array_mu_z=new_array_z
     points_deformed=_classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
     indices_y=3*np.arange(n_points)+1
     Ay=get_coeff_y(points_deformed,triangles).reshape(1,-1)
     by=bx+ay
     tmp,new_array_x,new_array_y,new_array_z=_constrained_ffd(Ay,by,M,indices_y,indices_c,points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
-    array_mu_x=array_mu_x+new_array_x
-    array_mu_y=array_mu_y+new_array_y
-    array_mu_z=array_mu_z+new_array_z
+    array_mu_x=new_array_x
+    array_mu_y=new_array_y
+    array_mu_z=new_array_z
     points_deformed=_classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
     indices_z=3*np.arange(n_points)+2
     Az=get_coeff_z(points_deformed,triangles).reshape(1,-1)
     bz=by+az
     tmp,new_array_x,new_array_y,new_array_z=_constrained_ffd(Az,bz,M,indices_z,indices_c,points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
-    array_mu_x=array_mu_x+new_array_x
-    array_mu_y=array_mu_y+new_array_y
-    array_mu_z=array_mu_z+new_array_z
+    array_mu_x=new_array_x
+    array_mu_y=new_array_y
+    array_mu_z=new_array_z
     return tmp,array_mu_x-array_x_bak,array_mu_y-array_y_bak,array_mu_z-array_z_bak
 
 @jit(nopython=True)                             
 def _volume_preserving_ffd(points,M,n_control_points,array_mu_x,array_mu_y,array_mu_z,triangles):
     indices_c=np.arange(n_control_points[0]*n_control_points[1]*n_control_points[2])
     return _volume_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu_y,array_mu_z,triangles,indices_c)
+
+@jit(nopython=True)                             
+def _double_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu_y,array_mu_z,triangles,indices_c):
+    array_x_bak=array_mu_x.copy()
+    array_y_bak=array_mu_y.copy()
+    array_z_bak=array_mu_z.copy()
+    n_points=len(points.reshape(-1,3))
+    bb=numba_mean_0(points)
+
+    points_deformed=_classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    Vol_true=volume_x(points,triangles)
+    Vol_def=volume_x(points_deformed,triangles)
+    ax=1/3*(Vol_true-Vol_def)
+    ay=1/3*(Vol_true-Vol_def)
+    az=1/3*(Vol_true-Vol_def)
+    indices_x=3*np.arange(n_points)
+    Avx=get_coeff_x(points_deformed,triangles).reshape(-1)
+    Abx=1/n_points*np.ones(n_points).reshape(-1)
+    Ax=numba_concatenate(Avx,Abx)
+    bbx=bb[0]
+    bvx=Vol_def+ax
+    bx=np.array([bvx,bbx])
+    tmp,new_array_x,new_array_y,new_array_z=_constrained_ffd(Ax,bx,M,indices_x,indices_c,points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    array_mu_x=new_array_x
+    array_mu_y=new_array_y
+    array_mu_z=new_array_z
+    points_deformed=_classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    indices_y=3*np.arange(n_points)+1
+    Avy=get_coeff_y(points_deformed,triangles).reshape(-1)
+    Aby=1/n_points*np.ones(n_points).reshape(-1)
+    Ay=numba_concatenate(Avy,Aby)
+    bby=bb[1]
+    bvy=bvx+ay
+    by=np.array([bvy,bby])
+    tmp,new_array_x,new_array_y,new_array_z=_constrained_ffd(Ay,by,M,indices_y,indices_c,points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    array_mu_x=new_array_x
+    array_mu_y=new_array_y
+    array_mu_z=new_array_z
+    points_deformed=_classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    indices_z=3*np.arange(n_points)+2
+    Avz=get_coeff_z(points_deformed,triangles).reshape(-1)
+    Abz=1/n_points*np.ones(n_points).reshape(-1)
+    Az=numba_concatenate(Avz,Abz)
+    bbz=bb[2]
+    bvz=bvy+az
+    bz=np.array([bvz,bbz])
+    tmp,new_array_x,new_array_y,new_array_z=_constrained_ffd(Az,bz,M,indices_z,indices_c,points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
+    array_mu_x=new_array_x
+    array_mu_y=new_array_y
+    array_mu_z=new_array_z
+    return tmp,array_mu_x-array_x_bak,array_mu_y-array_y_bak,array_mu_z-array_z_bak
 
 
 
@@ -362,10 +420,10 @@ class CPFFD():
         return _classic_ffd(points,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z)
 
     def constrained_ffd(self,points,A,b,M,indices_x,indices_c):
-        points,delta_q_x,delta_q_y,delta_q_z=_constrained_ffd(A,b,M,indices_x,indices_c,points,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z)
-        self.array_mu_x=self.array_mu_x+delta_q_x
-        self.array_mu_y=self.array_mu_y+delta_q_y
-        self.array_mu_z=self.array_mu_z+delta_q_z
+        points,new_array_x,new_array_y,new_array_z=_constrained_ffd(A,b,M,indices_x,indices_c,points,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z)
+        self.array_mu_x=self.array_mu_x+new_array_x
+        self.array_mu_y=self.array_mu_y+new_array_y
+        self.array_mu_z=self.array_mu_z+new_array_z
         return points
 
 class BPFFD(CPFFD):
@@ -373,17 +431,17 @@ class BPFFD(CPFFD):
         super().__init__(n_control_points,box_length,box_origin)
     
     def barycenter_ffd(self,points,M):
-        points,delta_q_x,delta_q_y,delta_q_z=_barycenter_preserving_ffd(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z)
-        self.array_mu_x=self.array_mu_x+delta_q_x
-        self.array_mu_y=self.array_mu_y+delta_q_y
-        self.array_mu_z=self.array_mu_z+delta_q_z
+        points,new_array_x,new_array_y,new_array_z=_barycenter_preserving_ffd(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z)
+        self.array_mu_x=self.array_mu_x+new_array_x
+        self.array_mu_y=self.array_mu_y+new_array_y
+        self.array_mu_z=self.array_mu_z+new_array_z
         return points
 
     def barycenter_ffd_adv(self,points,M,points_c):
-        points,delta_q_x,delta_q_y,delta_q_z=_barycenter_preserving_ffd_adv(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z,points_c)
-        self.array_mu_x=self.array_mu_x+delta_q_x
-        self.array_mu_y=self.array_mu_y+delta_q_y
-        self.array_mu_z=self.array_mu_z+delta_q_z
+        points,new_array_x,new_array_y,new_array_z=_barycenter_preserving_ffd_adv(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z,points_c)
+        self.array_mu_x=self.array_mu_x+new_array_x
+        self.array_mu_y=self.array_mu_y+new_array_y
+        self.array_mu_z=self.array_mu_z+new_array_z
         return points
 
 
@@ -393,17 +451,29 @@ class VPFFD(CPFFD):
         super().__init__(n_control_points,box_length,box_origin)
     
     def volume_ffd(self,points,M,triangles):
-        points,delta_q_x,delta_q_y,delta_q_z=_volume_preserving_ffd(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z,triangles)
-        self.array_mu_x=self.array_mu_x+delta_q_x
-        self.array_mu_y=self.array_mu_y+delta_q_y
-        self.array_mu_z=self.array_mu_z+delta_q_z
+        points,new_array_x,new_array_y,new_array_z=_volume_preserving_ffd(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z,triangles)
+        self.array_mu_x=self.array_mu_x+new_array_x
+        self.array_mu_y=self.array_mu_y+new_array_y
+        self.array_mu_z=self.array_mu_z+new_array_z
         return points
     
     def volume_ffd_adv(self,points,M,triangles,indices_c):
-        points,delta_q_x,delta_q_y,delta_q_z=_volume_preserving_ffd_adv(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z,triangles,indices_c)
-        self.array_mu_x=self.array_mu_x+delta_q_x
-        self.array_mu_y=self.array_mu_y+delta_q_y
-        self.array_mu_z=self.array_mu_z+delta_q_z
+        points,new_array_x,new_array_y,new_array_z=_volume_preserving_ffd_adv(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z,triangles,indices_c)
+        self.array_mu_x=self.array_mu_x+new_array_x
+        self.array_mu_y=self.array_mu_y+new_array_y
+        self.array_mu_z=self.array_mu_z+new_array_z
+        return points
+
+class DPFFD(CPFFD):
+    def __init__(self,n_control_points=None,box_length=None,box_origin=None):
+        super().__init__(n_control_points,box_length,box_origin)
+
+    
+    def double_ffd_adv(self,points,M,triangles,indices_c):
+        points,new_array_x,new_array_y,new_array_z=_double_preserving_ffd_adv(points,M,self.n_control_points,self.array_mu_x,self.array_mu_y,self.array_mu_z,triangles,indices_c)
+        self.array_mu_x=self.array_mu_x+new_array_x
+        self.array_mu_y=self.array_mu_y+new_array_y
+        self.array_mu_z=self.array_mu_z+new_array_z
         return points
 
 
