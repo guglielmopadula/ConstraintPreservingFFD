@@ -43,7 +43,7 @@ def volume_x(points,triangles):
         x_sum=0
         for j in range(3):
             x_sum=x_sum+mesh[i,j,0]
-        tmp=np.zeros((2,2))
+        tmp=np.zeros((2,2),dtype=points.dtype)
         tmp[0,0]=mesh[i,1,1]-mesh[i,0,1]
         tmp[0,1]=mesh[i,1,2]-mesh[i,0,2]
         tmp[1,0]=mesh[i,2,1]-mesh[i,0,1]
@@ -79,7 +79,7 @@ def volume_z(points,triangles):
         z_sum=0
         for j in range(3):
             z_sum=z_sum+mesh[i,j,2]
-        tmp=np.zeros((2,2))
+        tmp=np.zeros((2,2),dtype=points.dtype)
         tmp[0,0]=mesh[i,1,0]-mesh[i,0,0]
         tmp[0,1]=mesh[i,1,1]-mesh[i,0,1]
         tmp[1,0]=mesh[i,2,0]-mesh[i,0,0]
@@ -87,9 +87,24 @@ def volume_z(points,triangles):
         s=s+z_sum*np.linalg.det(tmp)/6
     return s
 
+
+@jit(nopython=True)
+def volume_tetra(points,triangles):
+    mesh=points_triangle_indexing(points,triangles)
+    M=np.zeros((triangles.shape[0],triangles.shape[1],4),dtype=points.dtype)
+    n_triangles=len(triangles)
+    s=0
+    for i in range(n_triangles):
+        for j in range(4):
+            for k in range(3):
+                M[i,k,j]=mesh[i,j,k]
+            M[i,3,j]=1    
+        s=s+np.linalg.det(M[i])/6
+    return s
+
 @jit(nopython=True)
 def get_coeff_x(points,triangles):
-    p=np.zeros(points.shape[0])
+    p=np.zeros(points.shape[0],dtype=points.dtype)
     mesh=points_triangle_indexing(points,triangles)
     n_triangles=len(triangles)
     for i in range(n_triangles):
@@ -106,7 +121,7 @@ def get_coeff_x(points,triangles):
 
 @jit(nopython=True)
 def get_coeff_y(points,triangles):
-    p=np.zeros(points.shape[0])
+    p=np.zeros(points.shape[0],dtype=points.dtype)
     mesh=points_triangle_indexing(points,triangles)
     n_triangles=len(triangles)
     for i in range(n_triangles):
@@ -123,7 +138,7 @@ def get_coeff_y(points,triangles):
 
 @jit(nopython=True)
 def get_coeff_z(points,triangles):
-    p=np.zeros(points.shape[0])
+    p=np.zeros(points.shape[0],dtype=points.dtype)
     mesh=points_triangle_indexing(points,triangles)
     n_triangles=len(triangles)
     for i in range(n_triangles):
@@ -138,6 +153,62 @@ def get_coeff_z(points,triangles):
         p[k[2]]=p[k[2]]+np.linalg.det(tmp)/6
     return p
 
+@jit(nopython=True)
+def get_coeff_x_tetra(points,triangles):
+    p=np.zeros(points.shape[0],dtype=points.dtype)
+    mesh=points_triangle_indexing(points,triangles)
+    M=np.zeros((triangles.shape[0],triangles.shape[1],4),dtype=points.dtype)
+    n_triangles=len(triangles)
+    for i in range(n_triangles):
+        for j in range(4):
+            for k in range(3):
+                M[i,k,j]=mesh[i,j,k]
+            M[i,3,j]=1  
+    for i in range(n_triangles):
+        k=triangles[i]
+        p[k[0]]=p[k[0]]+(-M[i,1,2]*M[i,2,1]+M[i,1,3]*M[i,2,1]+M[i,1,1]*M[i,2,2]-M[i,1,3]*M[i,2,2]-M[i,1,1]*M[i,2,3]+M[i,1,2]*M[i,2,3])*(1)/6
+        p[k[1]]=p[k[1]]+(-M[i,1,2]*M[i,2,0]+M[i,1,3]*M[i,2,0]+M[i,1,0]*M[i,2,2]-M[i,1,3]*M[i,2,2]-M[i,1,0]*M[i,2,3]+M[i,1,2]*M[i,2,3])*(-1)/6
+        p[k[2]]=p[k[2]]+(-M[i,1,1]*M[i,2,0]+M[i,1,3]*M[i,2,0]+M[i,1,0]*M[i,2,1]-M[i,1,3]*M[i,2,1]-M[i,1,0]*M[i,2,3]+M[i,1,1]*M[i,2,3])*(1)/6
+        p[k[3]]=p[k[3]]+(-M[i,1,1]*M[i,2,0]+M[i,1,2]*M[i,2,0]+M[i,1,0]*M[i,2,1]-M[i,1,2]*M[i,2,1]-M[i,1,0]*M[i,2,2]+M[i,1,1]*M[i,2,2])*(-1)/6
+    return p
+
+@jit(nopython=True)
+def get_coeff_y_tetra(points,triangles):
+    p=np.zeros(points.shape[0],dtype=points.dtype)
+    mesh=points_triangle_indexing(points,triangles)
+    M=np.zeros((triangles.shape[0],triangles.shape[1],4),dtype=points.dtype)
+    n_triangles=len(triangles)
+    for i in range(n_triangles):
+        for j in range(4):
+            for k in range(3):
+                M[i,k,j]=mesh[i,j,k]
+            M[i,3,j]=1  
+    for i in range(n_triangles):
+        k=triangles[i]
+        p[k[0]]=p[k[0]]+(-M[i,0,2]*M[i,2,1]+M[i,0,3]*M[i,2,1]+M[i,0,1]*M[i,2,2]-M[i,0,3]*M[i,2,2]-M[i,0,1]*M[i,2,3]+M[i,0,2]*M[i,2,3])*(-1)/6
+        p[k[1]]=p[k[1]]+(-M[i,0,2]*M[i,2,0]+M[i,0,3]*M[i,2,0]+M[i,0,0]*M[i,2,2]-M[i,0,3]*M[i,2,2]-M[i,0,0]*M[i,2,3]+M[i,0,2]*M[i,2,3])*(1)/6
+        p[k[2]]=p[k[2]]+(-M[i,0,1]*M[i,2,0]+M[i,0,3]*M[i,2,0]+M[i,0,0]*M[i,2,1]-M[i,0,3]*M[i,2,1]-M[i,0,0]*M[i,2,3]+M[i,0,1]*M[i,2,3])*(-1)/6
+        p[k[3]]=p[k[3]]+(-M[i,0,1]*M[i,2,0]+M[i,0,2]*M[i,2,0]+M[i,0,0]*M[i,2,1]-M[i,0,2]*M[i,2,1]-M[i,0,0]*M[i,2,2]+M[i,0,1]*M[i,2,2])*(1)/6
+    return p
+
+@jit(nopython=True)
+def get_coeff_z_tetra(points,triangles):
+    p=np.zeros(points.shape[0])
+    mesh=points_triangle_indexing(points,triangles)
+    M=np.zeros((triangles.shape[0],triangles.shape[1],4))
+    n_triangles=len(triangles)
+    for i in range(n_triangles):
+        for j in range(4):
+            for k in range(3):
+                M[i,k,j]=mesh[i,j,k]
+            M[i,3,j]=1  
+    for i in range(n_triangles):
+        k=triangles[i]
+        p[k[0]]=p[k[0]]+(-M[i,0,2]*M[i,1,1]+M[i,0,3]*M[i,1,1]+M[i,0,1]*M[i,1,2]-M[i,0,3]*M[i,1,2]-M[i,0,1]*M[i,1,3]+M[i,0,2]*M[i,1,3])*(1)/6
+        p[k[1]]=p[k[1]]+(-M[i,0,2]*M[i,1,0]+M[i,0,3]*M[i,1,0]+M[i,0,0]*M[i,1,2]-M[i,0,3]*M[i,1,2]-M[i,0,0]*M[i,1,3]+M[i,0,2]*M[i,1,3])*(-1)/6
+        p[k[2]]=p[k[2]]+(-M[i,0,1]*M[i,1,0]+M[i,0,3]*M[i,1,0]+M[i,0,0]*M[i,1,1]-M[i,0,3]*M[i,1,1]-M[i,0,0]*M[i,1,3]+M[i,0,1]*M[i,1,3])*(1)/6
+        p[k[3]]=p[k[3]]+(-M[i,0,1]*M[i,1,0]+M[i,0,2]*M[i,1,0]+M[i,0,0]*M[i,1,1]-M[i,0,2]*M[i,1,1]-M[i,0,0]*M[i,1,2]+M[i,0,1]*M[i,1,2])*(-1)/6
+    return p
 
 @jit(nopython=True)
 def generate_random_sdp(n):
@@ -150,7 +221,7 @@ def generate_random_sdp(n):
 def numba_mean_0(A):
     m=A.shape[0]
     n=A.shape[1]
-    mean=np.zeros(n)
+    mean=np.zeros(n,dtype=A.dtype)
     for i in range(m):
         mean=mean+A[i]
     mean=mean/m
@@ -196,7 +267,7 @@ def _constrained_ffd(A,b,M,indices_x,indices_c,points,n_control_points,array_mu_
     delta_b=b-b_tmp
     num_axis=np.unique(indices_x%3)
     bmesh=_bernstein_mesh(points,n_control_points)
-    A_c=np.zeros((A.shape[0],len(num_axis),len(indices_c)))
+    A_c=np.zeros((A.shape[0],len(num_axis),len(indices_c)),dtype=points.dtype)
     for i in prange(A.shape[0]):
         for i_g in prange(len(indices_x)):
             for i_h in prange(len(indices_c)):
@@ -235,7 +306,7 @@ def _classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z):
     control_y=control_points[1].reshape(n_x,n_y,n_z)
     control_z=control_points[2].reshape(n_x,n_y,n_z)
     bernstein_mesh=_bernstein_mesh(points,n_control_points)
-    points_new=np.zeros_like(points)
+    points_new=np.zeros_like(points,dtype=points.dtype)
     for p in range(len(points)):
         for i in range(n_x):
             for j in range(n_y):
@@ -268,7 +339,7 @@ def _barycenter_preserving_ffd(points,M,n_control_points,array_mu_x,array_mu_y,a
 def _barycenter_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu_y,array_mu_z,indices_c):
     n_points=len(points.reshape(-1,3))
     indices_x=np.arange(n_points*3)
-    A=np.zeros((3,n_points*3))
+    A=np.zeros((3,n_points*3),dtype=points.dtype)
     for i in range(3):
         for j in range(i,n_points*3,3):
             A[i,j]=1/n_points     
@@ -328,16 +399,15 @@ def _double_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu_y,a
     array_z_bak=array_mu_z.copy()
     n_points=len(points.reshape(-1,3))
     bb=numba_mean_0(points)
-
     points_deformed=_classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
-    Vol_true=volume_x(points,triangles)
-    Vol_def=volume_x(points_deformed,triangles)
+    Vol_true=volume_tetra(points,triangles)
+    Vol_def=volume_tetra(points_deformed,triangles)
     ax=1/3*(Vol_true-Vol_def)
     ay=1/3*(Vol_true-Vol_def)
     az=1/3*(Vol_true-Vol_def)
     indices_x=3*np.arange(n_points)
-    Avx=get_coeff_x(points_deformed,triangles).reshape(-1)
-    Abx=1/n_points*np.ones(n_points).reshape(-1)
+    Avx=get_coeff_x_tetra(points_deformed,triangles).reshape(-1)
+    Abx=1/n_points*np.ones(n_points,dtype=points.dtype).reshape(-1)
     Ax=numba_concatenate(Avx,Abx)
     bbx=bb[0]
     bvx=Vol_def+ax
@@ -348,8 +418,8 @@ def _double_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu_y,a
     array_mu_z=new_array_z
     points_deformed=_classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
     indices_y=3*np.arange(n_points)+1
-    Avy=get_coeff_y(points_deformed,triangles).reshape(-1)
-    Aby=1/n_points*np.ones(n_points).reshape(-1)
+    Avy=get_coeff_y_tetra(points_deformed,triangles).reshape(-1)
+    Aby=1/n_points*np.ones(n_points,dtype=points.dtype).reshape(-1)
     Ay=numba_concatenate(Avy,Aby)
     bby=bb[1]
     bvy=bvx+ay
@@ -360,8 +430,8 @@ def _double_preserving_ffd_adv(points,M,n_control_points,array_mu_x,array_mu_y,a
     array_mu_z=new_array_z
     points_deformed=_classic_ffd(points,n_control_points,array_mu_x,array_mu_y,array_mu_z)
     indices_z=3*np.arange(n_points)+2
-    Avz=get_coeff_z(points_deformed,triangles).reshape(-1)
-    Abz=1/n_points*np.ones(n_points).reshape(-1)
+    Avz=get_coeff_z_tetra(points_deformed,triangles).reshape(-1)
+    Abz=1/n_points*np.ones(n_points,dtype=points.dtype).reshape(-1)
     Az=numba_concatenate(Avz,Abz)
     bbz=bb[2]
     bvz=bvy+az

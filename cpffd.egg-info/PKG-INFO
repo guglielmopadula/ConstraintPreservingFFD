@@ -1,0 +1,17 @@
+Metadata-Version: 1.1
+Name: cpffd
+Version: 0
+Summary: Constrain preserving Free Form Deformation
+Home-page: https://github.com/gpadula/ConstraintPreservingFFD
+Author: Guglielmo Padula
+Author-email: gpadula@sissa.it
+License: MIT
+Description: UNKNOWN
+Keywords: dimension_reduction mathematics ffd morphing iges stl vtk openfoam
+Platform: UNKNOWN
+Classifier: Development Status :: 3 - Alpha
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Intended Audience :: Science/Research
+Classifier: Topic :: Scientific/Engineering :: Mathematics

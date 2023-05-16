@@ -1,0 +1,10 @@
+README.md
+setup.py
+cpffd/__init__.py
+cpffd/cpffd.py
+cpffd.egg-info/PKG-INFO
+cpffd.egg-info/SOURCES.txt
+cpffd.egg-info/dependency_links.txt
+cpffd.egg-info/not-zip-safe
+cpffd.egg-info/requires.txt
+cpffd.egg-info/top_level.txt
